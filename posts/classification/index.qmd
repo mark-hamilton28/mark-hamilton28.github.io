@@ -1,0 +1,129 @@
+---
+title: "Classification using Logistic Regression and Random Forest"
+author: "Mark Hamilton"
+date: "2023-12-01"
+categories: [classification]
+---
+
+Classification is a type of supervised machine learning that predicts the correct category of each input data point. To explore different aspects of classification, let's try out some classification models on the breast cancer dataset from scikit-learn.
+
+```{python}
+#| code-fold: true
+#| code-summary: "Imports"
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+
+```{python}
+from sklearn.datasets import load_breast_cancer
+cancer = load_breast_cancer()
+print(f"Number of entries: {cancer.target.size}")
+print(f"Unique Labels: {np.unique(cancer.target)}")
+pd.DataFrame(cancer.data, columns=cancer.feature_names).head()
+```
+
+The breast cancer dataset contains 569 data points, each with 30 numeric features of a tumor, and the labels state whether the tumor is cancerous. Since there are only two unique labels (True/False), we will be doing binary classification.
+
+Let's do a train test split with a test size of 20%.
+
+```{python}
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(cancer.data, cancer.target, test_size=0.2, random_state=42)
+```
+
+First, let's try logistic regression. Logistic regression determines the probability that a given data point is a part of a certain class. Here, we are doing binary classification, so the model will choose the class that has a probability of over 50% as its prediction.
+
+```{python}
+from sklearn.linear_model import LogisticRegression
+lr = LogisticRegression(max_iter=10000)
+lr.fit(X_train, y_train)
+y_pred = lr.predict(X_test)
+
+from sklearn.metrics import accuracy_score
+print(f"Accuracy: {accuracy_score(y_test, y_pred)}")
+```
+
+We trained the model on the training set, and used the test set to get the model's predictions. We compared the predictions to the actual labels, and we got 95.6% accuracy. That's pretty good, but what if most of the data belonged to one class? So for this dataset, what if most of the tumors were not cancerous? Then if the model predicted false every time, the accuracy would be very high, but the model would actually be terrible at identifying cancerous tumors. So if there is a severe class imbalance, accuracy does not tell the whole story.
+
+```{python}
+np.unique(cancer.target, return_counts=True)
+```
+
+This class imbalance is not too severe, so accuracy should be okay to use as a performance metric.
+
+But let's still discuss precision and recall, which are two performance metrics for classification that will work even when there is a class imbalance.
+
+Precision is the percent of positive predictions made by the model that are actually positive.
+
+$Precision=\frac{True Positives}{True Positives + False Positives}$
+
+Recall is the percent of positive data points that the model correctly predicted as positive.
+
+$Recall=\frac{True Positives}{True Positives + False Negatives}$
+
+There is a tradeoff between precision and recall. If the model predicts fewer positives, precision will improve because there will be fewer false positives, but recall will decrease because there may also be fewer true positives. If the model predicts more positives, precision will decrease and recall will increase.
+
+F1 score is a value that combines precision and recall. It is the harmonic mean of precision and recall.
+
+```{python}
+from sklearn.metrics import precision_score, recall_score, f1_score
+print(f"Precision: {precision_score(y_test, y_pred)}")
+print(f"Recall: {recall_score(y_test, y_pred)}")
+print(f"F1 Score: {f1_score(y_test, y_pred)}")
+```
+
+A Precision-Recall curve shows the tradeoff between precision and recall. A good model has both high precision and high recall, so it is better if the curve is closer to the top right. Here is the PR curve:
+
+```{python}
+from sklearn.metrics import precision_recall_curve, auc
+precision, recall, thresholds = precision_recall_curve(y_test, y_pred)
+# Compute area under the curve (AUC)
+auc_score = auc(recall, precision)
+
+# Plot the Precision-Recall curve
+plt.plot(recall, precision, label=f'PR Curve (AUC = {auc_score:.2f})', color='b')
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.title('Precision-Recall Curve for Logistic Regression')
+plt.legend()
+plt.show()
+```
+
+The area under the curve (AUC) represents how good the PR curve is. If the curve is closer to the top right, the AUC will be larger. But it is important to look at the curve in addition to the AUC, because you want a fairly even tradeoff between precision and recall.
+
+Now let's try random forest, a different model that can be used for classification. Random forest consists of multiple decision trees. Each decision tree makes decisions based on a random subset of features from the dataset using bagging (random selection with replacement), and each decision tree votes to determine the overall model's prediction.
+
+```{python}
+from sklearn.ensemble import RandomForestClassifier
+rf = RandomForestClassifier(random_state=42)
+rf.fit(X_train, y_train)
+
+y_pred = rf.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Accuracy: {accuracy}")
+```
+
+We did not specify the number of decision trees to use, so it used 100 decision trees, which is the default value. The accuracy for this random forest model is better than that of our logistic regression model.
+
+Here are the performance metrics and the PR curve:
+
+```{python}
+precision, recall, thresholds = precision_recall_curve(y_test, y_pred)
+print(f"Precision: {precision_score(y_test, y_pred)}")
+print(f"Recall: {recall_score(y_test, y_pred)}")
+print(f"F1 Score: {f1_score(y_test, y_pred)}")
+
+# Compute area under the curve (AUC)
+auc_score = auc(recall, precision)
+
+# Plot the Precision-Recall curve
+plt.plot(recall, precision, label=f'PR Curve (AUC = {auc_score:.2f})', color='b')
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.title('Precision-Recall Curve for Random Forest')
+plt.legend()
+plt.show()
+```
+
+Random forest also has better precision and the same recall, so it seems that random forest is a better model to use for this dataset. However, there are various hyperparameters for both of these models. I mostly used the default hyperparameters set by scikit-learn, but if I were to test different values for the hyperparameters, the performance of the models could improve.
