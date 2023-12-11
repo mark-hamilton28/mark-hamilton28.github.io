@@ -2,6 +2,7 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/probability/index.html",
       "/posts/outliers/index.html",
       "/posts/clustering/index.html",
       "/posts/regression/index.html",
